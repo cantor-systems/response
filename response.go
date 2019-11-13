@@ -82,8 +82,8 @@ func WithStatus(w http.ResponseWriter, r *http.Request, status int) {
 
 // Handler wraps an HTTP handler becoming the source of options for all
 // containing With calls.
-func (o *Options) Handler(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (o *Options) Handler(handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		initOnce.Do(func() {
 			options = make(map[*http.Request]*Options)
 			responded = make(map[*http.Request]bool)
@@ -98,7 +98,7 @@ func (o *Options) Handler(handler http.Handler) http.Handler {
 			mutex.Unlock()
 		}()
 		handler.ServeHTTP(w, r)
-	})
+	}
 }
 
 func with(w http.ResponseWriter, r *http.Request, status int, data interface{}, opts *Options, multiple bool) {
