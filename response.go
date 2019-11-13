@@ -44,6 +44,7 @@ var (
 	mutex     sync.RWMutex
 	options   map[*http.Request]*Options
 	responded map[*http.Request]bool
+	initOnce  sync.Once
 )
 
 // With responds to the client.
@@ -77,6 +78,27 @@ func WithStatus(w http.ResponseWriter, r *http.Request, status int) {
 	}
 
 	with(w, r, status, data, opts, multiple)
+}
+
+// Handler wraps an HTTP handler becoming the source of options for all
+// containing With calls.
+func (o *Options) Handler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		initOnce.Do(func() {
+			options = make(map[*http.Request]*Options)
+			responded = make(map[*http.Request]bool)
+		})
+		mutex.Lock()
+		options[r] = o
+		mutex.Unlock()
+		defer func() {
+			mutex.Lock()
+			delete(options, r)
+			delete(responded, r)
+			mutex.Unlock()
+		}()
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func with(w http.ResponseWriter, r *http.Request, status int, data interface{}, opts *Options, multiple bool) {
