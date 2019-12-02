@@ -42,9 +42,9 @@ type Options struct {
 
 var (
 	mutex     sync.RWMutex
-	options   map[*http.Request]*Options
-	responded map[*http.Request]bool
-	initOnce  sync.Once
+	option    *Options
+	options   = make(map[*http.Request]*Options)
+	responded = make(map[*http.Request]bool)
 )
 
 // With responds to the client.
@@ -84,10 +84,6 @@ func WithStatus(w http.ResponseWriter, r *http.Request, status int) {
 // containing With calls.
 func (o *Options) Handler(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		initOnce.Do(func() {
-			options = make(map[*http.Request]*Options)
-			responded = make(map[*http.Request]bool)
-		})
 		mutex.Lock()
 		options[r] = o
 		mutex.Unlock()
@@ -102,6 +98,10 @@ func (o *Options) Handler(handler http.Handler) http.HandlerFunc {
 }
 
 func with(w http.ResponseWriter, r *http.Request, status int, data interface{}, opts *Options, multiple bool) {
+	if opts == nil && option != nil {
+		opts = option
+	}
+
 	hasOpts := opts != nil
 
 	if hasOpts && multiple && !opts.AllowMultiple {
@@ -137,4 +137,8 @@ func with(w http.ResponseWriter, r *http.Request, status int, data interface{}, 
 		responded[r] = true
 		mutex.Unlock()
 	}
+}
+
+func SetOptions(opt *Options) {
+	option = opt
 }
